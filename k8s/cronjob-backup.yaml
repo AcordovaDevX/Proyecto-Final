@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-cronjob
+  namespace: proyecto-backend-ns
+spec:
+  schedule: "0 */3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: aws-cli-backup
+            image: amazon/aws-cli:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+              echo "Starting backup process at $TIMESTAMP"
+              # Dummy dump for demonstration, in a real scenario run mysqldump/pg_dump/mongodump based on MY_DATABASE_DRIVER
+              echo "Database dump contents" > /tmp/db_dump.sql
+              aws s3 cp /tmp/db_dump.sql s3://bucket-codigo-backup/cordova-alumno/database/$TIMESTAMP/db_dump.sql
+              echo "Backup completed"
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+                  optional: true
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+                  optional: true
+          restartPolicy: OnFailure
