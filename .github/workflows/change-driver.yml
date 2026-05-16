@@ -1,0 +1,35 @@
+name: Change Database Driver
+
+on:
+  workflow_dispatch:
+    inputs:
+      recurso:
+        description: 'Nombre del deployment'
+        required: true
+        default: 'backend-deployment'
+      driver:
+        description: 'Driver de base de datos a usar (postgres, mysql, mongo)'
+        required: true
+        type: choice
+        options:
+          - postgres
+          - mysql
+          - mongo
+
+jobs:
+  change-driver:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Kubernetes config
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+        chmod 600 ~/.kube/config
+
+    - name: Update ConfigMap and restart Deployment
+      run: |
+        # Asumiendo que el ConfigMap y el namespace existen
+        kubectl create configmap backend-config --from-literal=MY_DATABASE_DRIVER=${{ github.event.inputs.driver }} -n proyecto-backend-ns --dry-run=client -o yaml | kubectl apply -f -
+        kubectl rollout restart deployment ${{ github.event.inputs.recurso }} -n proyecto-backend-ns
+        kubectl rollout status deployment ${{ github.event.inputs.recurso }} -n proyecto-backend-ns
