@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    image: acordovadev/proyecto-backend:latest
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MY_DATABASE_DRIVER=postgres
+      - DB_HOST=db-host
+      - DB_USER_NAME=root
+      - DB_NAME=proyectodb
+      - DB_PORT=5432
+      - DB_PASSWORD=super-secret-password
+    restart: unless-stopped
+
+  backup:
+    image: amazon/aws-cli:latest
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Starting backup service...';
+      while true; do
+        sleep 10800;
+        TIMESTAMP=\$$(date +'%Y%m%d%H%M%S');
+        echo 'Starting backup at '\$$TIMESTAMP;
+        echo 'Database dump contents' > /tmp/db_dump.sql;
+        aws s3 cp /tmp/db_dump.sql s3://bucket-codigo-backup/cordova-alumno/database-jenkins/\$$TIMESTAMP/db_dump.sql;
+        echo 'Backup finished';
+      done"
+    restart: unless-stopped
