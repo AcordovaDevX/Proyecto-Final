@@ -29,7 +29,7 @@ jobs:
 
     - name: Update ConfigMap and restart Deployment
       run: |
-        # Asumiendo que el ConfigMap y el namespace existen
-        kubectl create configmap backend-config --from-literal=MY_DATABASE_DRIVER=${{ github.event.inputs.driver }} -n proyecto-backend-ns --dry-run=client -o yaml | kubectl apply -f -
+        # Patch MY_DATABASE_DRIVER key in ConfigMap without erasing other keys
+        kubectl patch configmap backend-config -n proyecto-backend-ns --type=merge -p '{"data":{"MY_DATABASE_DRIVER":"${{ github.event.inputs.driver }}"}}'
         kubectl rollout restart deployment ${{ github.event.inputs.recurso }} -n proyecto-backend-ns
         kubectl rollout status deployment ${{ github.event.inputs.recurso }} -n proyecto-backend-ns
