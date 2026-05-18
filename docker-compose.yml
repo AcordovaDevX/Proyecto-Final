@@ -14,6 +14,18 @@ services:
       - DB_PORT=5432
       - DB_PASSWORD=super-secret-password
     restart: unless-stopped
+    depends_on:
+      - db-host
+
+  db-host:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=super-secret-password
+      - POSTGRES_DB=proyectodb
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
 
   backup:
     image: amazon/aws-cli:latest
