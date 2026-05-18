@@ -33,10 +33,18 @@ jobs:
         chmod 600 ~/.kube/config
 
     - name: Deploy to Kubernetes
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
+        # Replace placeholders in aws-secret.yaml and apply it
+        sed -i "s|TU_AWS_ACCESS_KEY_ID_AQUI|$AWS_ACCESS_KEY_ID|g" k8s/aws-secret.yaml
+        sed -i "s|TU_AWS_SECRET_ACCESS_KEY_AQUI|$AWS_SECRET_ACCESS_KEY|g" k8s/aws-secret.yaml
+        
         kubectl apply -f k8s/namespace.yaml
         kubectl apply -f k8s/configmap.yaml
         kubectl apply -f k8s/secret.yaml
+        kubectl apply -f k8s/aws-secret.yaml
         kubectl apply -f k8s/deployment.yaml
         kubectl apply -f k8s/service.yaml
         kubectl apply -f k8s/cronjob-backup.yaml

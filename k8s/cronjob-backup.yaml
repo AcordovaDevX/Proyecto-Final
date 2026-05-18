@@ -17,11 +17,44 @@ spec:
             - -c
             - |
               TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-              echo "Starting backup process at $TIMESTAMP"
-              # Dummy dump for demonstration, in a real scenario run mysqldump/pg_dump/mongodump based on MY_DATABASE_DRIVER
-              echo "Database dump contents" > /tmp/db_dump.sql
-              aws s3 cp /tmp/db_dump.sql s3://bucket-codigo-backup/cordova-alumno/database/$TIMESTAMP/db_dump.sql
-              echo "Backup completed"
+              echo "Starting backup process at $TIMESTAMP for driver $MY_DATABASE_DRIVER..."
+              
+              if [ "$MY_DATABASE_DRIVER" = "postgres" ]; then
+                echo "Installing postgresql client..."
+                yum install -y postgresql > /dev/null
+                echo "Running pg_dump..."
+                PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER_NAME" -d "$DB_NAME" -F c -f /tmp/db_dump.dump
+                FILE_PATH="/tmp/db_dump.dump"
+              elif [ "$MY_DATABASE_DRIVER" = "mysql" ]; then
+                echo "Installing mariadb client..."
+                yum install -y mariadb > /dev/null
+                echo "Running mysqldump..."
+                mysqldump -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER_NAME" -p"$DB_PASSWORD" "$DB_NAME" > /tmp/db_dump.sql
+                FILE_PATH="/tmp/db_dump.sql"
+              elif [ "$MY_DATABASE_DRIVER" = "mongo" ]; then
+                echo "Downloading mongodump..."
+                curl -sS https://fastdl.mongodb.org/tools/db/mongodb-database-tools-rhel70-x86_64-100.9.4.tgz | tar -xz --strip-components=2 -C /usr/local/bin/ mongodb-database-tools-rhel70-x86_64-100.9.4/bin/mongodump > /dev/null
+                echo "Running mongodump..."
+                mongodump --host "$DB_HOST:$DB_PORT" --username "$DB_USER_NAME" --password "$DB_PASSWORD" --db "$DB_NAME" --archive=/tmp/db_dump.archive
+                FILE_PATH="/tmp/db_dump.archive"
+              else
+                echo "Unknown database driver: $MY_DATABASE_DRIVER"
+                exit 1
+              fi
+
+              if [ -f "$FILE_PATH" ]; then
+                echo "Uploading backup to S3..."
+                aws s3 cp "$FILE_PATH" "s3://bucket-codigo-backup/cordova-alumno/database/$TIMESTAMP/$(basename $FILE_PATH)"
+                echo "Backup completed successfully!"
+              else
+                echo "Backup file $FILE_PATH not found. Backup failed!"
+                exit 1
+              fi
+            envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secret
             env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
